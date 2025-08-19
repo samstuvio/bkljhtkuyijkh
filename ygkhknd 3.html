@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drug Discovery Tools & Screening</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- RDKit.js for molecule rendering -->
+    <script src="https://unpkg.com/@rdkit/rdkit/dist/RDKit_minimal.js"></script>
+    <!-- Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(to bottom, #eff6ff, #f8fafc); /* blue-50 to slate-50 */
+        }
+        .tracking-tight {
+            letter-spacing: -0.025em;
+        }
+        .tab-active {
+            color: #2563eb;
+            font-weight: 600;
+            border-bottom: 2px solid #2563eb;
+        }
+        .tab-inactive {
+            color: #4b5563;
+            border-bottom: 2px solid transparent;
+        }
+        .bento-box {
+            background-color: white;
+            border: 1px solid #e5e7eb; /* border-gray-200 */
+            border-radius: 1.5rem; /* 24px */
+            padding: 1.25rem; /* 20px */
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+            transition: all 0.3s ease;
+            height: 100%;
+        }
+        .loader {
+            border: 4px solid rgba(0,0,0,0.1);
+            border-radius: 50%;
+            border-top: 4px solid #3b82f6;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        .example-tag {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <!-- Header -->
+        <header class="text-left mb-8">
+            <h1 class="text-4xl md:text-5xl font-semibold text-gray-900 tracking-tight">Drug Discovery Tools & Screening</h1>
+            <p class="text-lg text-gray-600 mt-3 max-w-6xl">An interactive web app for the multi-stage drug discovery pipeline, made accessible for everyone.</p>
+        </header>
+
+        <!-- Tabs for Pipeline Stages -->
+        <div class="mb-6">
+            <nav class="flex flex-wrap justify-start -mb-px" id="tabs">
+                <!-- Tab links will be dynamically generated here -->
+            </nav>
+        </div>
+
+        <!-- Main Content Area -->
+        <main id="main-content">
+            <!-- Content for each stage will be dynamically generated here -->
+        </main>
+    </div>
+
+    <script>
+        window.initRDKitModule().then(function (RDKit) {
+            window.RDKit = RDKit;
+            main();
+        }).catch(() => {
+            console.error("Failed to load RDKit module.");
+            main();
+        });
+
+        function main() {
+            const tabsContainer = document.getElementById('tabs');
+            const mainContent = document.getElementById('main-content');
+            let chartInstances = {}; // To keep track of all chart instances
+
+            const pipelineStages = [
+                 {
+                    id: 'biomarker',
+                    name: 'Target Discovery',
+                    purpose: 'Find the right biological target for a drug to act upon.',
+                    explanation: "Think of a disease as a lock. The first step is to find the specific keyhole (a protein or gene) that we can target to stop the disease. This stage uses AI to analyze biological data and identify these key targets.",
+                    models: 'GraphConvModel, Omics Featurizers',
+                    examples: {
+                        high: { name: 'Aspirin', smiles: 'CC(=O)OC1=CC=CC=C1C(=O)O' },
+                        medium: { name: 'Ibuprofen', smiles: 'CC(C)CC1=CC=C(C=C1)C(C)C(=O)O' },
+                        low: { name: 'Ethanol', smiles: 'CCO' }
+                    },
+                    runAction: (smiles) => simulateAnalysis('biomarker', 'Analyzing molecular graph features...', () => {
+                        const targetData = {
+                            labels: ['COX-1 & COX-2', 'Prostaglandin H2 Synthase', 'Other Kinases'],
+                            data: [98, 75, 20]
+                        };
+                        setTimeout(() => renderTargetChart(targetData), 100);
+                        return `<div class="space-y-4">
+                                    <div class="grid grid-cols-2 gap-4 text-center">
+                                        <div class="bg-slate-50 p-3 rounded-xl"><div class="text-xs text-slate-500">Primary Target</div><div class="text-lg font-semibold text-blue-600">COX-1 & 2</div></div>
+                                        <div class="bg-slate-50 p-3 rounded-xl"><div class="text-xs text-slate-500">Top Confidence</div><div class="text-lg font-semibold text-blue-600">98%</div></div>
+                                    </div>
+                                    <div class="h-48"><canvas id="targetChart"></canvas></div>
+                                    <div>
+                                        <h4 class="font-semibold text-gray-800 mb-2">Summary</h4>
+                                        <p class="text-sm text-gray-600">The model strongly predicts interaction with COX enzymes, making this a promising anti-inflammatory candidate. The carboxylic acid group is identified as a key feature for binding.</p>
+                                    </div>
+                                </div>`;
+                    })
+                },
+                {
+                    id: 'screening',
+                    name: 'Hit Identification',
+                    purpose: 'Screen millions of molecules to find ones that might work.',
+                    explanation: "Once we have a target (the keyhole), we need to find a key that fits. This stage is like testing millions of potential keys (molecules) against the lock to see which ones show promise. It's a virtual screening process that saves immense time and resources.",
+                    models: 'MolGraphConvFeaturizer, HIVActivityChecker, PDBbind Predictors',
+                    examples: {
+                        high: { name: 'Oseltamivir', smiles: 'C[C@H]([C@H]([C@@H](C(=O)O)N)O)O' },
+                        medium: { name: 'Caffeine', smiles: 'CN1C=NC2=C1C(=O)N(C)C(=O)N2C' },
+                        low: { name: 'Methane', smiles: 'C' }
+                    },
+                    runAction: (smiles) => simulateAnalysis('screening', 'Screening molecules for binding affinity...', () => {
+                        const screeningData = [
+                            {x: 200, y: -11.2, label: 'Hit 1'}, {x: 350, y: -9.8, label: 'Hit 2'},
+                            {x: 180, y: -7.5, label: 'Lead-like'}, {x: 450, y: -8.1, label: 'Hit 3'},
+                            {x: 550, y: -6.0, label: 'Non-binder'}
+                        ];
+                        setTimeout(() => renderScreeningChart(screeningData), 100);
+                        return `<div class="space-y-4">
+                                    <div class="grid grid-cols-2 gap-4 text-center">
+                                        <div class="bg-slate-50 p-3 rounded-xl"><div class="text-xs text-slate-500">Top Affinity</div><div class="text-lg font-semibold text-green-600">-11.2 kcal/mol</div></div>
+                                        <div class="bg-slate-50 p-3 rounded-xl"><div class="text-xs text-slate-500">Lead-like Hits</div><div class="text-lg font-semibold text-green-600">3</div></div>
+                                    </div>
+                                    <div class="h-64"><canvas id="screeningChart"></canvas></div>
+                                     <div>
+                                        <h4 class="font-semibold text-gray-800 mb-2">Summary</h4>
+                                        <p class="text-sm text-gray-600">Screening identified 3 promising hits with good binding affinity and molecular weight. "Hit 1" is the most potent and should be prioritized for lead optimization.</p>
+                                    </div>
+                                </div>`;
+                    })
+                },
+                {
+                    id: 'optimization',
+                    name: 'Lead Optimization',
+                    purpose: 'Refine the promising molecules to make them better drugs.',
+                    explanation: "A key that fits isn't enough; it needs to be a *good* key. This stage takes the promising 'hits' and chemically modifies them to improve their properties, like making them more effective, less toxic, and easier for the body to absorb.",
+                    models: 'ESOL Predictor, LogP Predictor, Tox21/ClinTox Classifiers',
+                    examples: {
+                        high: { name: 'Ibuprofen', smiles: 'CC(C)CC1=CC=C(C=C1)C(C)C(=O)O' },
+                        medium: { name: 'Phenol', smiles: 'C1=CC=C(C=C1)O' },
+                        low: { name: 'Glucose', smiles: 'C(C(C(C(C(C=O)O)O)O)O)O' }
+                    },
+                    runAction: (smiles) => simulateAnalysis('optimization', 'Analyzing lead compound properties...', () => {
+                        const logPScore = 8.5;
+                        const solubilityScore = 7.0;
+                        const toxScore = 9.0;
+                        const clintoxScore = 9.5;
+                        setTimeout(() => renderOptimizationChart([logPScore, solubilityScore, toxScore, clintoxScore]), 100);
+                        return `<div class="space-y-4">
+                                    <div class="grid grid-cols-2 gap-4 text-center">
+                                        <div class="bg-slate-50 p-3 rounded-xl"><div class="text-xs text-slate-500">Overall Score</div><div class="text-lg font-semibold text-blue-600">8.5 / 10</div></div>
+                                        <div class="bg-slate-50 p-3 rounded-xl"><div class="text-xs text-slate-500">Safety Profile</div><div class="text-lg font-semibold text-green-600">Excellent</div></div>
+                                    </div>
+                                    <div class="h-64"><canvas id="optimizationChart"></canvas></div>
+                                     <div>
+                                        <h4 class="font-semibold text-gray-800 mb-2">Recommendation</h4>
+                                        <p class="text-sm text-gray-600">This compound has a strong drug-like profile with excellent safety scores. It is a high-quality lead candidate ready for preclinical testing.</p>
+                                    </div>
+                                </div>`;
+                    })
+                },
+                 {
+                    id: 'preclinical',
+                    name: 'Preclinical Prediction',
+                    purpose: 'Predict how the drug will behave in a living system.',
+                    explanation: "Before testing in humans, we need to predict how the drug will behave in the body. This stage uses computer models to simulate the drug's safety, how it's metabolized, and how well it's absorbed—a crucial step to de-risk clinical trials.",
+                    models: 'Metabolism Predictors, Bioavailability Regressors',
+                    examples: {
+                        high: { name: 'Ibuprofen', smiles: 'CC(C)CC1=CC=C(C=C1)C(C)C(=O)O' },
+                        medium: { name: 'Menadione', smiles: 'C1=CC=C2C(=C1)C(=O)C3=C(C2=O)C=CC=C3' },
+                        low: { name: 'Glucose', smiles: 'C(C(C(C(C(C=O)O)O)O)O)O' }
+                    },
+                    runAction: (smiles) => simulateAnalysis('preclinical', 'Running preclinical simulations...', () => `
+                        <div class="space-y-4">
+                            <div class="grid grid-cols-2 gap-4 text-center">
+                                <div class="bg-slate-50 p-3 rounded-xl"><div class="text-xs text-slate-500">Bioavailability</div><div class="text-lg font-semibold text-blue-600">78%</div></div>
+                                <div class="bg-slate-50 p-3 rounded-xl"><div class="text-xs text-slate-500">Safety Margin</div><div class="text-lg font-semibold text-green-600">Good</div></div>
+                            </div>
+                            <div class="space-y-4 text-sm pt-4">
+                                <div>
+                                    <div class="flex justify-between mb-1"><span class="font-medium text-slate-700">Oral Bioavailability</span><span class="font-semibold">78%</span></div>
+                                    <div class="w-full bg-slate-200 rounded-full h-2.5"><div class="bg-blue-600 h-2.5 rounded-full" style="width: 78%"></div></div>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between mb-1"><span class="font-medium text-slate-700">Metabolic Stability</span><span class="font-semibold">High</span></div>
+                                    <div class="w-full bg-slate-200 rounded-full h-2.5"><div class="bg-green-600 h-2.5 rounded-full" style="width: 90%"></div></div>
+                                </div>
+                                 <div>
+                                    <div class="flex justify-between mb-1"><span class="font-medium text-slate-700">Safety Margin</span><span class="font-semibold">Good</span></div>
+                                    <div class="w-full bg-slate-200 rounded-full h-2.5"><div class="bg-green-600 h-2.5 rounded-full" style="width: 85%"></div></div>
+                                </div>
+                            </div>
+                            <div class="pt-4">
+                                <h4 class="font-semibold text-gray-800 mb-2">Summary</h4>
+                                <p class="text-sm text-gray-600">The compound shows good oral bioavailability and a high safety margin, making it a strong candidate for moving into clinical trials.</p>
+                            </div>
+                        </div>`)
+                },
+                {
+                    id: 'clinical',
+                    name: 'Clinical Support',
+                    purpose: 'Match drug candidates to the right patient subgroups.',
+                    explanation: "People react differently to drugs. This 'precision medicine' step uses AI to predict which patients are most likely to benefit from a drug based on their unique biological markers, helping to design more effective clinical trials.",
+                    models: 'Biomarker-based Classifiers, Patient Response Models',
+                    examples: {
+                        high: { name: 'Imatinib', smiles: 'CN1C=C(C(=O)N(C1=O)C)N=C2N=C(C=C2C)N(C)C' },
+                        medium: { name: 'Paracetamol', smiles: 'CC(=O)NC1=CC=C(C=C1)O' },
+                        low: { name: 'Nitrobenzene', smiles: 'C1=CC=C(C=C1)N=O' }
+                    },
+                    runAction: (smiles) => simulateAnalysis('clinical', 'Predicting patient response...', () => {
+                        const clinicalData = [88, 12];
+                        setTimeout(() => renderClinicalChart(clinicalData), 100);
+                        return `<div class="space-y-4">
+                                    <div class="h-48"><canvas id="clinicalChart"></canvas></div>
+                                    <div>
+                                        <h4 class="font-semibold text-gray-800 mb-2">Patient Stratification</h4>
+                                        <p class="text-sm text-gray-600">The model predicts an <strong>88% response rate</strong> in patients with the <strong>GeneX-High</strong> biomarker. This suggests a targeted clinical trial would have a high probability of success.</p>
+                                    </div>
+                               </div>`;
+                    })
+                },
+                {
+                    id: 'manufacturing',
+                    name: 'Manufacturing & QC',
+                    purpose: 'Ensure the drug can be produced reliably and safely.',
+                    explanation: "A great drug is useless if you can't make it. This stage uses models to predict a drug's stability, shelf life, and the best way to formulate it into a pill or injection, ensuring it can be manufactured consistently and safely at scale.",
+                    models: 'Stability Prediction Models, Material Property Predictors',
+                    examples: {
+                        high: { name: 'Aspirin', smiles: 'CC(=O)OC1=CC=CC=C1C(=O)O' },
+                        medium: { name: 'Dexamethasone', smiles: 'C[C@]12[C@H]([C@H]([C@@H]([C@H]1C(=O)C=C3[C@]2(C[C@H]([C@H]3O)O)C)O)O)C(=O)CO' },
+                        low: { name: 'Dipeptide', smiles: 'CC(C)(C)OC(=O)N[C@@H](CC1=CC=CC=C1)C(=O)N[C@@H](CC(C)C)C(=O)O' }
+                    },
+                    runAction: (smiles) => simulateAnalysis('manufacturing', 'Analyzing formulation & stability...', () => {
+                        const manufacturingData = { predicted: 36, target: 24 };
+                        setTimeout(() => renderManufacturingChart(manufacturingData), 100);
+                        return `<div class="space-y-4">
+                                    <div class="h-48"><canvas id="manufacturingChart"></canvas></div>
+                                    <div>
+                                        <h4 class="font-semibold text-gray-800 mb-2">Stability Assessment</h4>
+                                        <p class="text-sm text-gray-600">The predicted shelf life of <strong>36 months</strong> exceeds the 24-month target, indicating excellent chemical stability. Standard formulation with microcrystalline cellulose is recommended.</p>
+                                    </div>
+                               </div>`;
+                    })
+                },
+                 {
+                    id: 'surveillance',
+                    name: 'Post-Market Safety',
+                    purpose: 'Monitor drug safety after it has been approved.',
+                    explanation: "Even after a drug is on the market, we continue to monitor its safety. This tool can analyze a drug's structure to flag potential links to newly reported side effects, helping to ensure long-term patient safety.",
+                    models: 'Off-target Models, Structure-Alert Classifiers',
+                    examples: {
+                        high: { name: 'Thalidomide', smiles: 'O=C(N[C@H](C1)C(C2=CC=CC=C2)=O)C1=O' },
+                        medium: { name: 'Sulfadiazine', smiles: 'CN(C)C1=CC=C(C=C1)S(=O)(=O)NC2=NC=CC=C2' },
+                        low: { name: 'Glycine', smiles: 'NCC(=O)O' }
+                    },
+                     runAction: (smiles) => simulateAnalysis('surveillance', 'Analyzing for structural alerts...', () => `
+                        <div class="space-y-4">
+                            <div class="grid grid-cols-2 gap-4 text-center">
+                                <div class="bg-red-50 p-3 rounded-xl"><div class="text-xs text-red-500">Structural Alerts</div><div class="text-lg font-semibold text-red-600">1 Found</div></div>
+                                <div class="bg-yellow-50 p-3 rounded-xl"><div class="text-xs text-yellow-500">Off-Target Risk</div><div class="text-lg font-semibold text-yellow-600">Moderate</div></div>
+                            </div>
+                            <h4 class="font-semibold text-lg pt-2 text-gray-800 tracking-tight">Off-Target Risk Matrix</h4>
+                            <div class="p-4 bg-slate-50 rounded-xl">
+                                <table class="w-full text-center text-xs">
+                                    <thead>
+                                        <tr><th class="pb-2"></th><th class="font-medium text-slate-600">Low Likelihood</th><th class="font-medium text-slate-600">Medium Likelihood</th><th class="font-medium text-slate-600">High Likelihood</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr><td class="font-medium text-slate-600 text-right pr-2">High Severity</td><td class="p-2"><div class="bg-yellow-400 rounded-lg p-2">hERG</div></td><td class="p-2"><div class="bg-red-500 text-white rounded-lg p-2">CYP2D6</div></td><td class="p-2"><div class="bg-red-600 text-white rounded-lg p-2">Alert</div></td></tr>
+                                        <tr><td class="font-medium text-slate-600 text-right pr-2">Medium Severity</td><td class="p-2"><div class="bg-green-400 rounded-lg p-2">D2 Rep</div></td><td class="p-2"><div class="bg-yellow-400 rounded-lg p-2">5-HT2B</div></td><td class="p-2"><div class="bg-red-500 text-white rounded-lg p-2">MMP-2</div></td></tr>
+                                        <tr><td class="font-medium text-slate-600 text-right pr-2">Low Severity</td><td class="p-2"><div class="bg-green-400 rounded-lg p-2">ACE</div></td><td class="p-2"><div class="bg-green-400 rounded-lg p-2">H1 Rep</div></td><td class="p-2"><div class="bg-yellow-400 rounded-lg p-2">PDE5</div></td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="pt-2">
+                                <h4 class="font-semibold text-gray-800 mb-2">Recommendation</h4>
+                                <p class="text-sm text-gray-600">A structural alert and moderate risk of hERG interaction suggest a need for cardiovascular safety monitoring. A review of adverse event data is recommended.</p>
+                            </div>
+                        </div>`)
+                },
+            ];
+
+            function createStageHTML(stage) {
+                const displayName = stage.name.replace(/^\d+\.\s*/, '');
+                return `
+                    <div id="content-${stage.id}" class="stage-content hidden">
+                        <div class="text-left">
+                            <h2 class="text-3xl font-semibold mb-2 tracking-tight">${displayName}</h2>
+                            <p class="text-gray-600 mb-6">${stage.purpose}</p>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <div class="bento-box lg:col-span-1">
+                                <h3 class="font-semibold text-gray-800 mb-2 tracking-tight">What is this step?</h3>
+                                <p class="text-sm text-gray-600">${stage.explanation}</p>
+                            </div>
+                            <div class="bento-box lg:col-span-1">
+                                <h3 class="font-semibold text-gray-800 mb-2 tracking-tight">${stage.name} Input</h3>
+                                <textarea id="input-${stage.id}" rows="3" class="w-full p-2 border bg-slate-50 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition"></textarea>
+                                <div class="mt-2 text-xs text-gray-500">
+                                    Try an example:
+                                    <span class="example-tag ml-2 bg-green-100 text-green-800 py-0.5 px-2 rounded-full" data-stage-id="${stage.id}" data-smiles="${stage.examples.high.smiles}">${stage.examples.high.name}</span>
+                                    <span class="example-tag ml-1 bg-yellow-100 text-yellow-800 py-0.5 px-2 rounded-full" data-stage-id="${stage.id}" data-smiles="${stage.examples.medium.smiles}">${stage.examples.medium.name}</span>
+                                    <span class="example-tag ml-1 bg-red-100 text-red-800 py-0.5 px-2 rounded-full" data-stage-id="${stage.id}" data-smiles="${stage.examples.low.smiles}">${stage.examples.low.name}</span>
+                                </div>
+                                <button id="run-${stage.id}" class="mt-3 w-full bg-blue-600 text-white font-semibold py-2.5 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150">
+                                    Run Analysis
+                                </button>
+                            </div>
+                            <div class="bento-box lg:col-span-1">
+                                <h3 class="font-semibold text-gray-800 mb-2 tracking-tight">Technical Details</h3>
+                                <div class="bg-slate-50 text-slate-700 p-3 rounded-lg text-sm">
+                                    <span class="font-semibold text-slate-800">Models Used:</span>
+                                    <span class="font-mono text-blue-600">${stage.models}</span>
+                                </div>
+                            </div>
+                            <div class="bento-box lg:col-span-2">
+                                <h3 class="font-semibold text-gray-800 mb-2 tracking-tight self-start">Compound Structure</h3>
+                                <div id="mol-viewer-${stage.id}" class="w-full h-full flex-grow flex items-center justify-center min-h-[300px]">
+                                    <p class="text-gray-400 text-sm">Molecule structure appears here</p>
+                                </div>
+                            </div>
+                            <div class="bento-box lg:col-span-1">
+                                 <h3 class="font-semibold text-gray-800 mb-2 tracking-tight">Results</h3>
+                                 <div id="output-${stage.id}" class="w-full flex-grow flex flex-col justify-center">
+                                    <div class="flex items-center justify-center h-full"><p class="text-gray-500">Run analysis to see results.</p></div>
+                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            function renderMolecule(smiles, viewerId) {
+                const viewer = document.getElementById(viewerId);
+                if (!smiles || !window.RDKit) {
+                    viewer.innerHTML = '<p class="text-gray-400 text-sm">Enter a valid SMILES string</p>';
+                    return false;
+                }
+                const firstSmiles = smiles.split('\n')[0].trim();
+                const mol = window.RDKit.get_mol(firstSmiles);
+                if (mol) {
+                    viewer.innerHTML = mol.get_svg(500, 400);
+                    mol.delete();
+                    return true;
+                } else {
+                    viewer.innerHTML = '<p class="text-red-500 text-sm">Invalid SMILES string</p>';
+                    return false;
+                }
+            }
+            
+            function destroyChart(stageId) {
+                if (chartInstances[stageId]) {
+                    chartInstances[stageId].destroy();
+                    delete chartInstances[stageId];
+                }
+            }
+
+            function renderTargetChart(chartData) {
+                destroyChart('biomarker');
+                const ctx = document.getElementById('targetChart');
+                if (!ctx) return;
+                chartInstances['biomarker'] = new Chart(ctx, {
+                    type: 'bar',
+                    data: { labels: chartData.labels, datasets: [{ label: 'Binding Confidence (%)', data: chartData.data, backgroundColor: ['rgba(75, 192, 192, 0.6)', 'rgba(255, 205, 86, 0.6)', 'rgba(255, 99, 132, 0.6)'] }] },
+                    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, scales: { x: { beginAtZero: true, max: 100 } } }
+                });
+            }
+
+            function renderScreeningChart(chartData) {
+                destroyChart('screening');
+                const ctx = document.getElementById('screeningChart');
+                if (!ctx) return;
+                chartInstances['screening'] = new Chart(ctx, {
+                    type: 'scatter',
+                    data: { datasets: [{ label: 'Compounds', data: chartData, backgroundColor: 'rgba(59, 130, 246, 0.6)' }] },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { x: { title: { display: true, text: 'Molecular Weight (Daltons)' } }, y: { title: { display: true, text: 'Binding Affinity (kcal/mol)' } } } }
+                });
+            }
+
+            function renderOptimizationChart(data) {
+                destroyChart('optimization');
+                const ctx = document.getElementById('optimizationChart');
+                if (!ctx) return;
+                chartInstances['optimization'] = new Chart(ctx, {
+                    type: 'radar',
+                    data: { labels: ['Lipophilicity', 'Solubility', 'Tox Safety', 'Clinical Safety'], datasets: [{ label: 'ADMET Score (out of 10)', data: data, fill: true, backgroundColor: 'rgba(59, 130, 246, 0.2)', borderColor: 'rgb(59, 130, 246)', pointBackgroundColor: 'rgb(59, 130, 246)' }] },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { r: { suggestedMin: 0, suggestedMax: 10 } } }
+                });
+            }
+
+            function renderClinicalChart(chartData) {
+                destroyChart('clinical');
+                const ctx = document.getElementById('clinicalChart');
+                if (!ctx) return;
+                chartInstances['clinical'] = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: { labels: ['Positive Response', 'No Response'], datasets: [{ data: chartData, backgroundColor: ['rgba(22, 163, 74, 0.7)', 'rgba(220, 38, 38, 0.7)'] }] },
+                    options: { responsive: true, maintainAspectRatio: false, cutout: '70%' }
+                });
+            }
+
+            function renderManufacturingChart(chartData) {
+                destroyChart('manufacturing');
+                const ctx = document.getElementById('manufacturingChart');
+                if (!ctx) return;
+                chartInstances['manufacturing'] = new Chart(ctx, {
+                    type: 'bar',
+                    data: { labels: ['Shelf Life'], datasets: [{ label: 'Predicted', data: [chartData.predicted], backgroundColor: 'rgba(59, 130, 246, 0.6)' }, { label: 'Target', data: [chartData.target], backgroundColor: 'rgba(201, 203, 207, 0.6)' }] },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, title: { display: true, text: 'Months' } } } }
+                });
+            }
+
+
+            pipelineStages.forEach((stage, index) => {
+                const tabLink = document.createElement('a');
+                tabLink.href = '#';
+                tabLink.textContent = stage.name.replace(/^\d+\.\s*/, '');
+                tabLink.dataset.target = `content-${stage.id}`;
+                tabLink.className = `py-3 px-4 text-sm font-medium transition-colors duration-200 ${index === 0 ? 'tab-active' : 'tab-inactive'}`;
+                tabsContainer.appendChild(tabLink);
+                mainContent.innerHTML += createStageHTML(stage);
+            });
+            
+            document.getElementById(`content-${pipelineStages[0].id}`).classList.remove('hidden');
+
+            tabsContainer.addEventListener('click', (e) => {
+                if (e.target.tagName !== 'A') return;
+                e.preventDefault();
+                tabsContainer.querySelectorAll('a').forEach(tab => tab.className = tab.className.replace('tab-active', 'tab-inactive'));
+                mainContent.querySelectorAll('.stage-content').forEach(content => content.classList.add('hidden'));
+                e.target.className = e.target.className.replace('tab-inactive', 'tab-active');
+                document.getElementById(e.target.dataset.target).classList.remove('hidden');
+            });
+
+            pipelineStages.forEach(stage => {
+                const inputEl = document.getElementById(`input-${stage.id}`);
+                const runBtn = document.getElementById(`run-${stage.id}`);
+                inputEl.addEventListener('input', () => renderMolecule(inputEl.value, `mol-viewer-${stage.id}`));
+                runBtn.addEventListener('click', () => {
+                    const smiles = inputEl.value;
+                    if (renderMolecule(smiles, `mol-viewer-${stage.id}`)) {
+                        stage.runAction(smiles);
+                    } else {
+                        document.getElementById(`output-${stage.id}`).innerHTML = `<div class="flex items-center justify-center h-full"><p class="text-red-500">Please enter a valid SMILES string.</p></div>`;
+                    }
+                });
+
+                document.querySelectorAll(`.example-tag[data-stage-id="${stage.id}"]`).forEach(tag => {
+                    tag.addEventListener('click', () => {
+                        const smiles = tag.dataset.smiles;
+                        inputEl.value = smiles;
+                        renderMolecule(smiles, `mol-viewer-${stage.id}`);
+                    });
+                });
+            });
+
+            function simulateAnalysis(stageId, loadingMessage, resultGenerator) {
+                const outputDiv = document.getElementById(`output-${stageId}`);
+                outputDiv.innerHTML = `<div class="flex flex-col items-center justify-center h-full"><div class="loader mb-3"></div><p class="text-gray-600 text-sm">${loadingMessage}</p></div>`;
+                setTimeout(() => { outputDiv.innerHTML = resultGenerator(); }, 1500 + Math.random() * 1000);
+            }
+        }
+    </script>
+
+</body>
+</html>
